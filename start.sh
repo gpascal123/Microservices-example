@@ -24,4 +24,12 @@ if ! grep -q '^SERVICE_PRIVATE_KEY=' .env; then
   echo "Generated service keys in .env"
 fi
 
+# Generate DB credentials if not yet present in .env.
+if ! grep -q '^POSTGRES_PASSWORD=' .env; then
+  POSTGRES_PASSWORD="$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-32)"
+  printf 'POSTGRES_USER="postgres"\n' >> .env
+  printf 'POSTGRES_PASSWORD="%s"\n' "$POSTGRES_PASSWORD" >> .env
+  echo "Generated DB credentials in .env"
+fi
+
 exec docker compose up --build "$@"

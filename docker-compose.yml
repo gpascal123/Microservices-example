@@ -5,6 +5,8 @@
 x-db: &db
   image: postgres:17-alpine
   restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
   healthcheck:
     test: ["CMD-SHELL", "pg_isready -U postgres"]
     interval: 5s
@@ -13,13 +15,15 @@ x-db: &db
 
 x-service: &service
   restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
 
 services:
   users-db:
     <<: *db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: users
     volumes:
       - users-db-data:/var/lib/postgresql/data
@@ -27,8 +31,8 @@ services:
   orders-db:
     <<: *db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: orders
     volumes:
       - orders-db-data:/var/lib/postgresql/data
@@ -36,8 +40,8 @@ services:
   payments-db:
     <<: *db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: payments
     volumes:
       - payments-db-data:/var/lib/postgresql/data
@@ -45,8 +49,8 @@ services:
   inventory-db:
     <<: *db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: inventory
     volumes:
       - inventory-db-data:/var/lib/postgresql/data
@@ -59,7 +63,7 @@ services:
     environment:
       # The image defaults to production, which refuses the log-only mailer.
       APP_ENV: development
-      DATABASE_URL: postgres://postgres:postgres@users-db:5432/users?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@users-db:5432/users?sslmode=disable
       JWT_PRIVATE_KEY: ${JWT_PRIVATE_KEY:?set JWT_PRIVATE_KEY}
     depends_on:
       users-db:
@@ -71,7 +75,7 @@ services:
       context: .
       dockerfile: services/orders/Dockerfile
     environment:
-      DATABASE_URL: postgres://postgres:postgres@orders-db:5432/orders?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@orders-db:5432/orders?sslmode=disable
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:?set JWT_PUBLIC_KEY}
       SERVICE_PRIVATE_KEY: ${SERVICE_PRIVATE_KEY:?set SERVICE_PRIVATE_KEY}
       INVENTORY_ADDR: inventory:50054
@@ -87,7 +91,7 @@ services:
       context: .
       dockerfile: services/payments/Dockerfile
     environment:
-      DATABASE_URL: postgres://postgres:postgres@payments-db:5432/payments?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@payments-db:5432/payments?sslmode=disable
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:?set JWT_PUBLIC_KEY}
     depends_on:
       payments-db:
@@ -99,7 +103,7 @@ services:
       context: .
       dockerfile: services/inventory/Dockerfile
     environment:
-      DATABASE_URL: postgres://postgres:postgres@inventory-db:5432/inventory?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@inventory-db:5432/inventory?sslmode=disable
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:?set JWT_PUBLIC_KEY}
       SERVICE_PUBLIC_KEY: ${SERVICE_PUBLIC_KEY:?set SERVICE_PUBLIC_KEY}
     depends_on:
@@ -111,8 +115,10 @@ services:
   inventory-seed:
     image: postgres:17-alpine
     restart: "no"
+    security_opt:
+      - no-new-privileges:true
     environment:
-      PGPASSWORD: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
     volumes:
       - ./services/inventory/seed/dev-seed.sql:/seed.sql:ro
     command: ["psql", "-v", "ON_ERROR_STOP=1", "-h", "inventory-db", "-U", "postgres", "-d", "inventory", "-f", "/seed.sql"]
